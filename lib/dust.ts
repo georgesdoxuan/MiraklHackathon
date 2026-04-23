@@ -78,25 +78,9 @@ async function sendMessage(base: string, conversationId: string, agentId: string
 type PollOptions = {
   maxAttempts?: number;
   intervalMs?: number;
+  fastAttempts?: number;
+  fastIntervalMs?: number;
 };
-
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new Error(`Timeout — ${label} exceeded ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-  });
-}
 
 function isTransientNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
@@ -112,23 +96,12 @@ function isTransientNetworkError(error: unknown): boolean {
   );
 }
 
-function shouldFallbackOnAgentFailure(error: unknown): boolean {
-  if (isTransientNetworkError(error)) return true;
-  if (error instanceof Error && error.message.includes("Timeout —")) {
-    return true;
-  }
-  if (error instanceof DustApiError && error.status >= 500) {
-    return true;
-  }
-  return false;
-}
-
 async function pollForResponse(base: string, conversationId: string, options: PollOptions = {}): Promise<string> {
-  const maxAttempts = options.maxAttempts ?? 60;
+  const maxAttempts = options.maxAttempts ?? 300;
   const intervalMs = options.intervalMs ?? 2000;
+  const fastAttempts = options.fastAttempts ?? 10;
+  const fastIntervalMs = options.fastIntervalMs ?? 500;
   for (let i = 0; i < maxAttempts; i++) {
-    await new Promise(r => setTimeout(r, intervalMs));
-
     try {
       const res = await fetch(`${base}/assistant/conversations/${conversationId}`, {
         headers: { Authorization: `Bearer ${DUST_API_KEY}` },
@@ -144,12 +117,49 @@ async function pollForResponse(base: string, conversationId: string, options: Po
       if (agentMessage) return agentMessage.content;
     } catch (error) {
       if (isTransientNetworkError(error)) {
-        continue;
+        // keep polling; transient network issues should not cancel a valid generation
+      } else {
+        throw error;
       }
-      throw error;
     }
+
+    const waitMs = i < fastAttempts ? fastIntervalMs : intervalMs;
+    await new Promise(r => setTimeout(r, waitMs));
   }
   throw new Error("Timeout — agent did not respond in time");
+}
+
+const DEFAULT_POLL_OPTIONS: PollOptions = {
+  maxAttempts: 300,
+  fastAttempts: 10,
+  fastIntervalMs: 500,
+  intervalMs: 2000,
+};
+
+export async function callDustAgent(agentId: string, message: string, options: PollOptions = {}): Promise<string> {
+  const pollOptions = {
+    ...DEFAULT_POLL_OPTIONS,
+    ...options,
+  };
+  const bases = getCandidateBases();
+  let lastError: unknown = null;
+
+  for (const base of bases) {
+    try {
+      const convId = await createConversation(base);
+      await sendMessage(base, convId, agentId, message);
+      return pollForResponse(base, convId, pollOptions);
+    } catch (err) {
+      lastError = err;
+      // Retry on likely region mismatch only.
+      if (err instanceof DustApiError && err.status === 401 && err.code === "invalid_api_key_error") {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Dust call failed");
 }
 
 function parseAgentJson(raw: string, stage: string): any {
@@ -219,28 +229,6 @@ function parseEmailPackage(raw: string, stage: string): any {
   }
 }
 
-export async function callDustAgent(agentId: string, message: string, options: PollOptions = {}): Promise<string> {
-  const bases = getCandidateBases();
-  let lastError: unknown = null;
-
-  for (const base of bases) {
-    try {
-      const convId = await createConversation(base);
-      await sendMessage(base, convId, agentId, message);
-      return pollForResponse(base, convId, options);
-    } catch (err) {
-      lastError = err;
-      // Retry on likely region mismatch only.
-      if (err instanceof DustApiError && err.status === 401 && err.code === "invalid_api_key_error") {
-        continue;
-      }
-      throw err;
-    }
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("Dust call failed");
-}
-
 export async function runC1Pipeline(scrapedContent: string): Promise<{
   brandProfile: any;
   scores: any;
@@ -250,58 +238,20 @@ export async function runC1Pipeline(scrapedContent: string): Promise<{
   const agentMarketplaceScorer = process.env.AGENT_MARKETPLACE_SCORER!;
   const agentEmailCrafter = process.env.AGENT_EMAIL_CRAFTER_C1!;
 
-  let brandProfile: any = {};
-  try {
-    const brandProfileRaw = await withTimeout(
-      callDustAgent(agentBrandAnalyst, scrapedContent, { maxAttempts: 12, intervalMs: 1000 }),
-      15000,
-      "brand profile generation"
-    );
-    brandProfile = parseAgentJson(brandProfileRaw, "brandProfile");
-  } catch (error) {
-    if (!shouldFallbackOnAgentFailure(error)) {
-      throw error;
-    }
-  }
+  const brandProfileRaw = await callDustAgent(agentBrandAnalyst, scrapedContent);
+  const brandProfile = parseAgentJson(brandProfileRaw, "brandProfile");
 
-  let scores: any = {};
-  try {
-    const scoresRaw = await withTimeout(
-      callDustAgent(
-        agentMarketplaceScorer,
-        JSON.stringify(brandProfile),
-        { maxAttempts: 10, intervalMs: 1000 }
-      ),
-      12000,
-      "marketplace scoring"
-    );
-    scores = parseAgentJson(scoresRaw, "scores");
-  } catch (error) {
-    if (!shouldFallbackOnAgentFailure(error)) {
-      throw error;
-    }
-  }
+  const scoresRaw = await callDustAgent(
+    agentMarketplaceScorer,
+    JSON.stringify(brandProfile)
+  );
+  const scores = parseAgentJson(scoresRaw, "scores");
 
-  let emailPackage: any = {};
-  try {
-    const emailPackageRaw = await withTimeout(
-      callDustAgent(
-        agentEmailCrafter,
-        JSON.stringify({ brandProfile, scores }),
-        { maxAttempts: 7, intervalMs: 1000 }
-      ),
-      8000,
-      "email package generation"
-    );
-    emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
-  } catch (error) {
-    if (!shouldFallbackOnAgentFailure(error)) {
-      throw error;
-    }
-    emailPackage = {
-      body: "",
-    };
-  }
+  const emailPackageRaw = await callDustAgent(
+    agentEmailCrafter,
+    JSON.stringify({ brandProfile, scores })
+  );
+  const emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
 
   return { brandProfile, scores, emailPackage };
 }
@@ -313,40 +263,14 @@ export async function runC2Pipeline(scrapedContent: string): Promise<{
   const agentSellerMatcher = process.env.AGENT_SELLER_MATCHER!;
   const agentEmailCrafter = process.env.AGENT_EMAIL_CRAFTER_C2!;
 
-  let sellerProfile: any = {};
-  try {
-    const sellerProfileRaw = await withTimeout(
-      callDustAgent(agentSellerMatcher, scrapedContent, { maxAttempts: 12, intervalMs: 1000 }),
-      15000,
-      "seller profile generation"
-    );
-    sellerProfile = parseAgentJson(sellerProfileRaw, "sellerProfile");
-  } catch (error) {
-    if (!shouldFallbackOnAgentFailure(error)) {
-      throw error;
-    }
-  }
+  const sellerProfileRaw = await callDustAgent(agentSellerMatcher, scrapedContent);
+  const sellerProfile = parseAgentJson(sellerProfileRaw, "sellerProfile");
 
-  let emailPackage: any = {};
-  try {
-    const emailPackageRaw = await withTimeout(
-      callDustAgent(
-        agentEmailCrafter,
-        JSON.stringify(sellerProfile),
-        { maxAttempts: 7, intervalMs: 1000 }
-      ),
-      8000,
-      "email package generation"
-    );
-    emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
-  } catch (error) {
-    if (!shouldFallbackOnAgentFailure(error)) {
-      throw error;
-    }
-    emailPackage = {
-      body: "",
-    };
-  }
+  const emailPackageRaw = await callDustAgent(
+    agentEmailCrafter,
+    JSON.stringify(sellerProfile)
+  );
+  const emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
 
   return { sellerProfile, emailPackage };
 }
