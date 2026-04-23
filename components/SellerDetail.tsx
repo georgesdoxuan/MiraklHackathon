@@ -4,7 +4,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import type { Seller } from "@/types";
 import { T, VC } from "./tokens";
 import { Pill } from "./Badge";
-import { SendDraftButton } from "./SendDraftButton";
 
 const barCfg = { score: { label: "Score", color: "#2764FF" } };
 
@@ -109,10 +108,6 @@ export function SellerDetail({ seller, onClose }: { seller: Seller; onClose: () 
         <div style={{ background: T.card, borderRadius: T.r, border: `1px solid ${T.border}`, padding: 12 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.dark, fontFamily: T.font }}>Email · {seller.top_match}</span>
-            <SendDraftButton
-              subject={seller.subjectA.replace(/ — /g, ", ")}
-              body={seller.email.replace(/ — /g, ", ")}
-            />
           </div>
           <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 10, fontWeight: 600, color: T.greyL, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Sujet A</div>

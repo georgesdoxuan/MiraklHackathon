@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { C1_BRANDS } from "@/data/brands";
 import { C2_SELLERS } from "@/data/sellers";
 import type { Status } from "@/types";
@@ -146,20 +146,6 @@ function toSeller(base: Seller, raw: any): Seller {
 
 export default function Home() {
   const [tab, setTab] = useState<"c1" | "c2">("c1");
-  const [gmailConnected, setGmailConnected] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/gmail/status")
-      .then(r => r.json())
-      .then(d => setGmailConnected(d.connected));
-
-    // Handle redirect back from OAuth
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("gmail") === "connected") {
-      setGmailConnected(true);
-      window.history.replaceState({}, "", "/");
-    }
-  }, []);
   const [c1Status, setC1Status] = useState<Record<string, Status>>({
     carolina: "ready", bode: "ready", aje: "ready",
   });
@@ -258,17 +244,6 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {gmailConnected ? (
-            <span style={{ background: "rgba(13,124,102,0.25)", color: "#4ADE80", borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ADE80", display: "inline-block" }} />
-              Gmail connecté
-            </span>
-          ) : (
-            <a href="/api/auth/gmail" style={{ background: "rgba(255,255,255,0.1)", color: "white", borderRadius: 6, padding: "4px 12px", fontSize: 11, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", gap: 5 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z" fill="currentColor"/></svg>
-              Connecter Gmail
-            </a>
-          )}
           <span style={{ background: "rgba(39,100,255,0.2)", color: "#7EB3FF", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
             C1 : {readyC1}/{C1_BRANDS.length} analysés
           </span>

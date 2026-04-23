@@ -7,7 +7,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import type { Brand } from "@/types";
 import { T } from "./tokens";
 import { Badge, Pill, ScoreBar } from "./Badge";
-import { SendDraftButton } from "./SendDraftButton";
 
 const radarCfg = { score: { label: "Score", color: T.accent } };
 
@@ -95,11 +94,6 @@ export function BrandDetail({ brand, onClose }: { brand: Brand; onClose: () => v
           }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.dark, fontFamily: T.font }}>Package Email</span>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <SendDraftButton
-                to={brand.contact}
-                subject={brand.subjectA.replace(/ — /g, ", ")}
-                body={brand.email.replace(/ — /g, ", ")}
-              />
               {(["main", "linkedin", "cold"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
                   fontSize: 10, padding: "3px 8px", borderRadius: 5,

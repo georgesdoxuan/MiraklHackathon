@@ -80,6 +80,24 @@ type PollOptions = {
   intervalMs?: number;
 };
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout — ${label} exceeded ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 function isTransientNetworkError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
@@ -96,7 +114,7 @@ function isTransientNetworkError(error: unknown): boolean {
 
 function shouldFallbackOnAgentFailure(error: unknown): boolean {
   if (isTransientNetworkError(error)) return true;
-  if (error instanceof Error && error.message.includes("Timeout — agent did not respond in time")) {
+  if (error instanceof Error && error.message.includes("Timeout —")) {
     return true;
   }
   if (error instanceof DustApiError && error.status >= 500) {
@@ -234,7 +252,11 @@ export async function runC1Pipeline(scrapedContent: string): Promise<{
 
   let brandProfile: any = {};
   try {
-    const brandProfileRaw = await callDustAgent(agentBrandAnalyst, scrapedContent, { maxAttempts: 35, intervalMs: 1500 });
+    const brandProfileRaw = await withTimeout(
+      callDustAgent(agentBrandAnalyst, scrapedContent, { maxAttempts: 12, intervalMs: 1000 }),
+      15000,
+      "brand profile generation"
+    );
     brandProfile = parseAgentJson(brandProfileRaw, "brandProfile");
   } catch (error) {
     if (!shouldFallbackOnAgentFailure(error)) {
@@ -244,10 +266,14 @@ export async function runC1Pipeline(scrapedContent: string): Promise<{
 
   let scores: any = {};
   try {
-    const scoresRaw = await callDustAgent(
-      agentMarketplaceScorer,
-      JSON.stringify(brandProfile),
-      { maxAttempts: 30, intervalMs: 1500 }
+    const scoresRaw = await withTimeout(
+      callDustAgent(
+        agentMarketplaceScorer,
+        JSON.stringify(brandProfile),
+        { maxAttempts: 10, intervalMs: 1000 }
+      ),
+      12000,
+      "marketplace scoring"
     );
     scores = parseAgentJson(scoresRaw, "scores");
   } catch (error) {
@@ -258,10 +284,14 @@ export async function runC1Pipeline(scrapedContent: string): Promise<{
 
   let emailPackage: any = {};
   try {
-    const emailPackageRaw = await callDustAgent(
-      agentEmailCrafter,
-      JSON.stringify({ brandProfile, scores }),
-      { maxAttempts: 25, intervalMs: 1500 }
+    const emailPackageRaw = await withTimeout(
+      callDustAgent(
+        agentEmailCrafter,
+        JSON.stringify({ brandProfile, scores }),
+        { maxAttempts: 7, intervalMs: 1000 }
+      ),
+      8000,
+      "email package generation"
     );
     emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
   } catch (error) {
@@ -285,7 +315,11 @@ export async function runC2Pipeline(scrapedContent: string): Promise<{
 
   let sellerProfile: any = {};
   try {
-    const sellerProfileRaw = await callDustAgent(agentSellerMatcher, scrapedContent, { maxAttempts: 35, intervalMs: 1500 });
+    const sellerProfileRaw = await withTimeout(
+      callDustAgent(agentSellerMatcher, scrapedContent, { maxAttempts: 12, intervalMs: 1000 }),
+      15000,
+      "seller profile generation"
+    );
     sellerProfile = parseAgentJson(sellerProfileRaw, "sellerProfile");
   } catch (error) {
     if (!shouldFallbackOnAgentFailure(error)) {
@@ -295,10 +329,14 @@ export async function runC2Pipeline(scrapedContent: string): Promise<{
 
   let emailPackage: any = {};
   try {
-    const emailPackageRaw = await callDustAgent(
-      agentEmailCrafter,
-      JSON.stringify(sellerProfile),
-      { maxAttempts: 25, intervalMs: 1500 }
+    const emailPackageRaw = await withTimeout(
+      callDustAgent(
+        agentEmailCrafter,
+        JSON.stringify(sellerProfile),
+        { maxAttempts: 7, intervalMs: 1000 }
+      ),
+      8000,
+      "email package generation"
     );
     emailPackage = parseEmailPackage(emailPackageRaw, "emailPackage");
   } catch (error) {
