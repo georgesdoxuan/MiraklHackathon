@@ -7,6 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import type { Brand } from "@/types";
 import { T } from "./tokens";
 import { Badge, Pill, ScoreBar } from "./Badge";
+import { SendDraftButton } from "./SendDraftButton";
 
 const radarCfg = { score: { label: "Score", color: T.accent } };
 
@@ -93,7 +94,12 @@ export function BrandDetail({ brand, onClose }: { brand: Brand; onClose: () => v
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: T.dark, fontFamily: T.font }}>Package Email</span>
-            <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <SendDraftButton
+                to={brand.contact}
+                subject={brand.subjectA.replace(/ — /g, ", ")}
+                body={brand.email.replace(/ — /g, ", ")}
+              />
               {(["main", "linkedin", "cold"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
                   fontSize: 10, padding: "3px 8px", borderRadius: 5,
@@ -113,7 +119,7 @@ export function BrandDetail({ brand, onClose }: { brand: Brand; onClose: () => v
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: T.greyL, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Sujet A</div>
-                  <div style={{ background: T.bg, borderRadius: T.r, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: T.dark }}>{brand.subjectA}</div>
+                  <div style={{ background: T.bg, borderRadius: T.r, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: T.dark }}>{brand.subjectA.replace(/ — /g, ", ")}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: T.greyL, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Corps · {brand.top_match}</div>

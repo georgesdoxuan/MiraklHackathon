@@ -37,7 +37,7 @@ export function ProspectTable({
             {mode === "c1" ? <TH>Tier</TH> : <TH>SKUs · Prix</TH>}
             {mode === "c1" ? <TH>Origine</TH> : <TH>Fulfillment</TH>}
             {mode === "c1" ? <TH>Prix</TH> : <TH>Note</TH>}
-            <TH>Statut</TH>
+            <TH style={{ width: 180, minWidth: 180 }}>Statut</TH>
             <TH>Top Match</TH>
             <TH>Score</TH>
             <TH>Action</TH>
@@ -79,7 +79,7 @@ export function ProspectTable({
                 <td style={{ padding: "10px 12px", fontSize: 12, color: T.grey }}>
                   {brand ? brand.price : `${seller!.rating}★ (${seller!.reviews})`}
                 </td>
-                <td style={{ padding: "10px 12px" }}>
+                <td style={{ padding: "10px 12px", width: 180, minWidth: 180, maxWidth: 180, overflow: "hidden" }}>
                   {status === "pending" && (
                     <span style={{ fontSize: 11, color: T.greyL, background: T.bg, borderRadius: 4, padding: "2px 8px", fontWeight: 500 }}>Non analysé</span>
                   )}

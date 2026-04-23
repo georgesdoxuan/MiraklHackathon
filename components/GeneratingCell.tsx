@@ -32,9 +32,9 @@ export function GeneratingCell({ mode }: { mode: "c1" | "c2" }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <div style={{
-        width: 14, height: 14, borderRadius: "50%",
+        width: 14, height: 14, minWidth: 14, minHeight: 14, borderRadius: "50%",
         border: `2px solid ${T.accent}`, borderTopColor: "transparent",
-        animation: "spin 0.7s linear infinite",
+        animation: "spin 0.7s linear infinite", flexShrink: 0, aspectRatio: "1 / 1",
       }} />
       <span style={{ fontSize: 11, color: T.accent, fontWeight: 500 }}>{steps[step]}</span>
     </div>
