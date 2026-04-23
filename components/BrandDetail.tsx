@@ -44,7 +44,7 @@ export function BrandDetail({ brand, onClose }: { brand: Brand; onClose: () => v
         {/* Info row */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Pill color={T.green} bg={T.greenL}>Quick win : {brand.quick_win}</Pill>
-          <Pill color="white" bg={T.dark}>{brand.strategy}</Pill>
+          <Pill color="white" bg={T.dark}>{brand.strategy.replace(/_/g, " ")}</Pill>
           {brand.sustainability && <Pill color={T.green} bg={T.greenL}>♻ Sustainable</Pill>}
           <span style={{ fontSize: 11, color: T.greyL, fontFamily: T.mono }}>{brand.contact}</span>
         </div>
@@ -117,7 +117,7 @@ export function BrandDetail({ brand, onClose }: { brand: Brand; onClose: () => v
                 </div>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: T.greyL, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Corps · {brand.top_match}</div>
-                  <div style={{ background: T.bg, borderRadius: T.r, padding: 12, fontSize: 11, color: T.dark, lineHeight: 1.75, whiteSpace: "pre-line" }}>{brand.email}</div>
+                  <div style={{ background: T.bg, borderRadius: T.r, padding: 12, fontSize: 11, color: T.dark, lineHeight: 1.75, whiteSpace: "pre-line" }}>{brand.email.replace(/ — /g, ", ")}</div>
                 </div>
               </div>
             )}

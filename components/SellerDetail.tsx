@@ -112,7 +112,7 @@ export function SellerDetail({ seller, onClose }: { seller: Seller; onClose: () 
             <div style={{ background: T.bg, borderRadius: T.r, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: T.dark }}>{seller.subjectA}</div>
           </div>
           <div style={{ fontSize: 10, fontWeight: 600, color: T.greyL, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>Corps</div>
-          <div style={{ background: T.bg, borderRadius: T.r, padding: 12, fontSize: 11, color: T.dark, lineHeight: 1.75, whiteSpace: "pre-line" }}>{seller.email}</div>
+          <div style={{ background: T.bg, borderRadius: T.r, padding: 12, fontSize: 11, color: T.dark, lineHeight: 1.75, whiteSpace: "pre-line" }}>{seller.email.replace(/ — /g, ", ")}</div>
         </div>
       </div>
     </div>
